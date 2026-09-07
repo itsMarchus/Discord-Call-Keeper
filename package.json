@@ -1,0 +1,36 @@
+{
+  "name": "discord-call-keeper",
+  "version": "1.0.0",
+  "description": "A 24/7 Discord Call Keeper bot designed to sustain voice channel calls indefinitely with live uptime dashboard and Render + UptimeRobot compatibility.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "keywords": [
+    "discord",
+    "discord-bot",
+    "voice-channel",
+    "24-7",
+    "call-keeper",
+    "render",
+    "uptimerobot"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@discordjs/voice": "^0.18.0",
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7",
+    "libsodium-wrappers": "^0.7.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
