@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="public/Bot_Banner.jpg" alt="Discord Call Keeper Banner" width="100%" style="border-radius: 12px; margin-bottom: 20px;" />
+
 # ⚡ Discord Call Keeper
 
 **A resilient, 24/7 Discord voice channel keeper built with TypeScript, Discord.js v14, and an embedded live status web dashboard.**
@@ -129,11 +131,18 @@ Once started, open [http://localhost:3000](http://localhost:3000) in your browse
 
 Follow these steps to create and configure your bot:
 
-### Step 1: Create the Application
+### Step 1: Create the Application & Set Branding
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications).
 2. Click **New Application** (top right) and give it a name (e.g., `Call Keeper`).
-3. Navigate to the **Bot** tab on the left sidebar.
-4. Click **Reset Token**, copy the generated token, and save it for your `DISCORD_TOKEN`.
+3. *(Optional Branding)* Use the included assets from the [`public/`](public/) folder:
+
+| Asset | Preview | Path | Usage |
+| :--- | :---: | :--- | :--- |
+| **Bot Avatar** | <img src="public/Bot_Profile.jpg" width="60" height="60" style="border-radius: 50%; object-fit: cover;" alt="Avatar" /> | [`public/Bot_Profile.jpg`](public/Bot_Profile.jpg) | Set as **App Icon** / Profile Picture |
+| **Bot Banner** | <img src="public/Bot_Banner.jpg" width="160" style="border-radius: 6px;" alt="Banner" /> | [`public/Bot_Banner.jpg`](public/Bot_Banner.jpg) | Set as **App Banner** / Server Banner |
+
+4. Navigate to the **Bot** tab on the left sidebar.
+5. Click **Reset Token**, copy the generated token, and save it for your `DISCORD_TOKEN`.
 
 ### Step 2: Bot Permissions & Intents
 * Under **Privileged Gateway Intents**, **NONE** are required! You do not need to check any boxes here.
