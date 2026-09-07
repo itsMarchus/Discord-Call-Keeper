@@ -87,6 +87,14 @@ export class VoiceCallKeeper {
       }
       this.stats.channelName = channel.name;
 
+      // Clean up previous connection if any
+      if (this.connection) {
+        try {
+          this.connection.destroy();
+        } catch {}
+        this.connection = null;
+      }
+
       console.log(
         `[Voice] Connecting to voice channel "${channel.name}" in guild "${guild.name}"...`
       );
@@ -104,8 +112,8 @@ export class VoiceCallKeeper {
       this.connection = connection;
       this.setupConnectionListeners(connection);
 
-      // Wait for the connection to be ready (up to 20 seconds)
-      await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
+      // Wait for the connection to be ready (up to 30 seconds)
+      await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
       console.log(`[Voice] Successfully connected and holding call in "${channel.name}"!`);
       this.stats.isConnected = true;
       this.stats.status = "Connected (24/7 Active)";
@@ -123,6 +131,14 @@ export class VoiceCallKeeper {
   }
 
   private setupConnectionListeners(connection: VoiceConnection): void {
+    connection.on("stateChange", (oldState, newState) => {
+      console.log(`[Voice State] ${oldState.status} -> ${newState.status}`);
+    });
+
+    connection.on("debug", (message) => {
+      console.log(`[Voice Debug] ${message}`);
+    });
+
     connection.on(VoiceConnectionStatus.Ready, () => {
       console.log("[Voice] Voice connection is READY.");
       this.stats.isConnected = true;
