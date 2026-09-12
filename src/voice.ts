@@ -233,11 +233,41 @@ export class VoiceCallKeeper {
     if (this.isShuttingDown || this.isConnecting) return;
 
     const existingConn = getVoiceConnection(this.guildId);
-    if (!existingConn || existingConn.state.status !== VoiceConnectionStatus.Ready) {
+    if (!existingConn) {
       if (!this.reconnectTimer) {
-        console.warn("[Voice Watchdog] Voice connection is missing or not ready. Re-triggering connect...");
+        console.warn("[Voice Watchdog] Voice connection is missing. Re-triggering connect...");
         this.connect();
       }
+      return;
+    }
+
+    // If it's already attempting to signal or connect (e.g. Discord server migration), allow it to settle
+    if (
+      existingConn.state.status === VoiceConnectionStatus.Signalling ||
+      existingConn.state.status === VoiceConnectionStatus.Connecting
+    ) {
+      console.log(
+        `[Voice Watchdog] Connection is in transitional state (${existingConn.state.status}), allowing it to settle...`
+      );
+      return;
+    }
+
+    if (existingConn.state.status !== VoiceConnectionStatus.Ready) {
+      if (!this.reconnectTimer) {
+        console.warn(
+          `[Voice Watchdog] Voice connection status is "${existingConn.state.status}". Re-triggering connect...`
+        );
+        this.connect();
+      }
+      return;
+    }
+
+    // Ensure bot is in the designated channel (detect if moved to AFK or another channel)
+    if (existingConn.joinConfig.channelId !== this.channelId) {
+      console.warn(
+        `[Voice Watchdog] Bot is in channel ${existingConn.joinConfig.channelId}, expected ${this.channelId}. Re-joining target channel...`
+      );
+      this.connect();
     }
   }
 

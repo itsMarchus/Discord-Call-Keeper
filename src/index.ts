@@ -45,6 +45,55 @@ async function main() {
     console.error("[Bot Error]", err);
   });
 
+  // Fast sub-second recovery if the bot is kicked or moved to another channel (e.g. AFK)
+  client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+    if (newState.id !== client.user?.id) return;
+
+    if (!newState.channelId) {
+      console.warn(
+        "[Voice State] Bot was disconnected from voice channel by user/server! Triggering immediate reconnect..."
+      );
+      voiceKeeper.connect();
+      return;
+    }
+
+    if (newState.channelId !== config.channelId) {
+      console.warn(
+        `[Voice State] Bot was moved to channel ${newState.channelId} (expected ${config.channelId}). Re-joining target channel immediately...`
+      );
+      voiceKeeper.connect();
+    }
+  });
+
+  // Gateway shard lifecycle monitoring
+  client.on(Events.ShardDisconnect, (event, shardId) => {
+    console.warn(`[Shard ${shardId}] Disconnected from Discord Gateway (code: ${event.code})`);
+  });
+
+  client.on(Events.ShardReconnecting, (shardId) => {
+    console.log(`[Shard ${shardId}] Reconnecting to Discord Gateway...`);
+  });
+
+  client.on(Events.ShardResume, (shardId, replayedEvents) => {
+    console.log(
+      `[Shard ${shardId}] Resumed Gateway session (replayed ${replayedEvents} events). Checking voice connection...`
+    );
+    voiceKeeper.connect();
+  });
+
+  client.on(Events.ShardError, (error, shardId) => {
+    console.error(`[Shard ${shardId}] Gateway socket error:`, error);
+  });
+
+  // Anti-crash handlers to ensure process never exits unexpectedly during 100+ hour calls
+  process.on("unhandledRejection", (reason) => {
+    console.error("[Anti-Crash] Unhandled Promise Rejection:", reason);
+  });
+
+  process.on("uncaughtException", (error) => {
+    console.error("[Anti-Crash] Uncaught Exception thrown:", error);
+  });
+
   // Graceful shutdown handling
   const shutdown = () => {
     console.log("\n[App] Shutting down gracefully...");
