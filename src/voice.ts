@@ -25,6 +25,7 @@ export class VoiceCallKeeper {
   private channelId: string;
   private connection: VoiceConnection | null = null;
   private isShuttingDown = false;
+  private isConnecting = false;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private retryDelayMs = 5000;
 
@@ -59,7 +60,8 @@ export class VoiceCallKeeper {
   }
 
   public async connect(): Promise<void> {
-    if (this.isShuttingDown) return;
+    if (this.isShuttingDown || this.isConnecting) return;
+    this.isConnecting = true;
 
     try {
       const guild = await this.client.guilds.fetch(this.guildId).catch(() => null);
@@ -87,9 +89,10 @@ export class VoiceCallKeeper {
       }
       this.stats.channelName = channel.name;
 
-      // Clean up previous connection if any
+      // Clean up previous connection if any; remove listeners so destroying doesn't trigger rogue reconnect timers
       if (this.connection) {
         try {
+          this.connection.removeAllListeners();
           this.connection.destroy();
         } catch {}
         this.connection = null;
@@ -120,6 +123,12 @@ export class VoiceCallKeeper {
       if (!this.stats.connectedSince) {
         this.stats.connectedSince = new Date();
       }
+
+      // Clear any pending reconnect timers once connected
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
       this.retryDelayMs = 5000; // Reset retry delay on success
     } catch (error: any) {
       console.error(`[Voice] Connection error:`, error?.message || error);
@@ -127,6 +136,8 @@ export class VoiceCallKeeper {
       this.stats.status = "Connection Failed";
       this.stats.lastDisconnectReason = error?.message || String(error);
       this.scheduleReconnect();
+    } finally {
+      this.isConnecting = false;
     }
   }
 
@@ -146,6 +157,11 @@ export class VoiceCallKeeper {
       if (!this.stats.connectedSince) {
         this.stats.connectedSince = new Date();
       }
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      this.retryDelayMs = 5000;
     });
 
     connection.on(VoiceConnectionStatus.Signalling, () => {
@@ -171,11 +187,10 @@ export class VoiceCallKeeper {
           ]);
           console.log("[Voice] Voice server re-established connection successfully.");
         } catch {
-          // Truly disconnected
+          // Truly disconnected: destroying will fire VoiceConnectionStatus.Destroyed which triggers scheduleReconnect()
           console.warn("[Voice] Connection lost permanently. Destroying and reconnecting...");
           this.stats.lastDisconnectReason = "Network / Voice Server disconnect";
           connection.destroy();
-          this.scheduleReconnect();
         }
       }
     );
@@ -215,7 +230,7 @@ export class VoiceCallKeeper {
   }
 
   private watchdogCheck(): void {
-    if (this.isShuttingDown) return;
+    if (this.isShuttingDown || this.isConnecting) return;
 
     const existingConn = getVoiceConnection(this.guildId);
     if (!existingConn || existingConn.state.status !== VoiceConnectionStatus.Ready) {
@@ -233,7 +248,10 @@ export class VoiceCallKeeper {
       this.reconnectTimer = null;
     }
     if (this.connection) {
-      this.connection.destroy();
+      try {
+        this.connection.removeAllListeners();
+        this.connection.destroy();
+      } catch {}
       this.connection = null;
     }
     this.stats.isConnected = false;
