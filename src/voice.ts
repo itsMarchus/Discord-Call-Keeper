@@ -32,6 +32,10 @@ export class VoiceCallKeeper {
   // Stats
   public stats: VoiceManagerStats;
 
+  public get isConnectingState(): boolean {
+    return this.isConnecting;
+  }
+
   constructor(client: Client, guildId: string, channelId: string) {
     this.client = client;
     this.guildId = guildId;
@@ -59,8 +63,31 @@ export class VoiceCallKeeper {
     }, 30_000);
   }
 
-  public async connect(): Promise<void> {
+  public async connect(force = false): Promise<void> {
     if (this.isShuttingDown || this.isConnecting) return;
+
+    // Check if we already have a healthy connection in the target channel
+    const existingConn = getVoiceConnection(this.guildId);
+    if (
+      !force &&
+      existingConn &&
+      existingConn.state.status === VoiceConnectionStatus.Ready &&
+      existingConn.joinConfig.channelId === this.channelId
+    ) {
+      this.stats.isConnected = true;
+      this.stats.status = "Connected (24/7 Active)";
+      return;
+    }
+
+    if (
+      !force &&
+      existingConn &&
+      (existingConn.state.status === VoiceConnectionStatus.Signalling ||
+        existingConn.state.status === VoiceConnectionStatus.Connecting)
+    ) {
+      return;
+    }
+
     this.isConnecting = true;
 
     try {

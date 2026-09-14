@@ -1,4 +1,5 @@
 import { Client, GatewayIntentBits, ActivityType, Events } from "discord.js";
+import { getVoiceConnection, VoiceConnectionStatus } from "@discordjs/voice";
 import { loadConfig } from "./config";
 import { VoiceCallKeeper } from "./voice";
 import { startHttpServer } from "./server";
@@ -50,10 +51,13 @@ async function main() {
     if (newState.id !== client.user?.id) return;
 
     if (!newState.channelId) {
-      console.warn(
-        "[Voice State] Bot was disconnected from voice channel by user/server! Triggering immediate reconnect..."
-      );
-      voiceKeeper.connect();
+      // Only handle true external disconnects when not in the middle of connecting
+      if (oldState.channelId && !voiceKeeper.isConnectingState) {
+        console.warn(
+          "[Voice State] Bot was disconnected from voice channel by user/server! Triggering immediate reconnect..."
+        );
+        voiceKeeper.connect(true);
+      }
       return;
     }
 
@@ -61,7 +65,7 @@ async function main() {
       console.warn(
         `[Voice State] Bot was moved to channel ${newState.channelId} (expected ${config.channelId}). Re-joining target channel immediately...`
       );
-      voiceKeeper.connect();
+      voiceKeeper.connect(true);
     }
   });
 
@@ -78,7 +82,19 @@ async function main() {
     console.log(
       `[Shard ${shardId}] Resumed Gateway session (replayed ${replayedEvents} events). Checking voice connection...`
     );
-    voiceKeeper.connect();
+    // Crucial: A Gateway resume does NOT drop the voice connection!
+    // Only reconnect if the voice socket was actually lost or disrupted.
+    const existingConn = getVoiceConnection(config.guildId);
+    if (!existingConn || existingConn.state.status !== VoiceConnectionStatus.Ready) {
+      console.warn(
+        `[Shard ${shardId}] Voice connection was affected by gateway reconnect. Re-establishing...`
+      );
+      voiceKeeper.connect(true);
+    } else {
+      console.log(
+        `[Shard ${shardId}] Voice connection remained completely stable during gateway resume. No interruption needed.`
+      );
+    }
   });
 
   client.on(Events.ShardError, (error, shardId) => {
